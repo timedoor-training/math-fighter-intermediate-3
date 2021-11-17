@@ -3,7 +3,7 @@ console.log("Tes")
 import Phaser from 'phaser'
 import MathFighterScene from './scenes/MathFighterScene'
 
-MathFighterScene
+
 const config = {
 	type: Phaser.AUTO,
 	width: 480,
