@@ -28,6 +28,14 @@ export default class MathFighterScene extends Phaser.Scene {
         this.button0 = undefined
         this.buttonDel = undefined
         this.buttonOk = undefined
+
+        this.numberArray = []
+        this.number = 0
+
+        this.resulText = undefined
+
+        this.question = []
+        this.questionText = undefined
     }
     preload() {
         this.load.image('background', 'images/bg-layer1.png')
@@ -150,6 +158,9 @@ export default class MathFighterScene extends Phaser.Scene {
 
         this.resultText = this.add.text(this.gameHalfWidth, 200, '0', { fontSize: '32px', fill: "#000" })
         this.questionText = this.add.text(this.gameHalfWidth, 100, '0', { fontSize: '32px', fill: "#000" })
+
+        this.input.on('gameobjectdown', this.addNumber, this)
+        this.generateQuestion()
     }
     createButtons() {
         const startPositionY = this.scale.height - 246
@@ -171,5 +182,87 @@ export default class MathFighterScene extends Phaser.Scene {
         this.button9 = this.add.image(this.button8.x + widthDifference, this.button6.y + heightDifference, 'numbers', 8).setInteractive().setData('value', 9)
         this.buttonOk = this.add.image(this.button0.x + widthDifference, this.button9.y + heightDifference, 'numbers', 11).setInteractive().setData('value', 'ok')
     }
+    addNumber(pointer, object, event) {
+        let value = object.getData('value')
 
+        if (isNaN(value)) {
+            if (value == 'del') {
+                this.numberArray.pop() //hapus array item terakhir
+                if (this.numberArray.length < 1) {
+                    this.numberArray[0] = 0 //nilai indeks 0 = 0
+                }
+            }
+            if (value == 'ok') {
+                this.checkAnswer() //panggil method checkAnswer
+                this.numberArray = [] //kosongkan array
+                this.numberArray[0] = 0 //nilai indeks 0 = 0 
+            }
+        } else {
+            //kondisi untuk button 0
+            if (this.numberArray.length == 1 &&
+                this.numberArray[0] == 0) {
+                this.numberArray[0] = value
+            } else {
+                //jika panjang array kurang dari 10
+                if (this.numberArray.length < 10) {
+                    //tambah item ke array
+                    this.numberArray.push(value)
+                }
+            }
+        }
+
+        this.number = parseInt(this.numberArray.join(''))
+
+        this.resultText.setText(this.number)
+        const textHalfWidth = this.resultText.width * 0.5
+        this.resultText.setX(this.gameHalfWidth -
+            textHalfWidth)
+        event.stopPropagation()
+
+    }
+
+    getOperator() {
+        const operator = ['+', '-', 'x', ':']
+        return operator[Phaser.Math.Between(0,
+            operator.length - 1)]
+    }
+
+    generateQuestion() {
+        let numberA = Phaser.Math.Between(0, 50)
+        let numberB = Phaser.Math.Between(0, 50)
+        let operator = this.getOperator()
+
+        if (operator === '+') {
+            this.question[0] = `${numberA} + ${numberB}`
+            this.question[1] = numberA + numberB
+        }
+        if (operator === '-') {
+            if (numberB > numberA) {
+                this.question[0] = `${numberB} - ${numberA}`
+                this.question[1] = numberB - numberA
+            } else {
+                this.question[0] = `${numberA} - ${numberB}`
+                this.question[1] = numberA - numberB
+            }
+        }
+        if (operator === 'x') {
+            this.question[0] = `${numberA} x ${numberB}`
+            this.question[1] = numberA * numberB
+        }
+        if (operator === ':') {
+            do {
+                numberA = Phaser.Math.Between(0, 50)
+                numberB = Phaser.Math.Between(0, 50)
+            }
+            while (!Number.isInteger(numberA / numberB))
+
+            this.question[0] = `${numberA} : ${numberB}`
+            this.question[1] = numberA / numberB
+        }
+
+        this.questionText.setText(this.question[0])
+        const textHalfWidth = this.questionText.width * 0.5
+        this.questionText.setX(this.gameHalfWidth -
+            textHalfWidth)
+    }
 }
