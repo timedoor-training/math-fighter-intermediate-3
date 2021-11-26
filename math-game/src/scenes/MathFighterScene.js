@@ -100,6 +100,9 @@ export default class MathFighterScene extends Phaser.Scene {
             start_button.destroy()
         }, this)
 
+        this.physics.add.overlap(this.player, this.slash, this.spriteHit, undefined, this)
+        this.physics.add.overlap(this.enemy, this.slash, this.spriteHit, undefined, this)
+
     }
     update(time) {
         if (this.correctAnswer == true && !this.playerAttack) {
@@ -290,6 +293,7 @@ export default class MathFighterScene extends Phaser.Scene {
             textHalfWidth)
     }
     checkAnswer() {
+        // bandingkan jawaban yang di input dengan soalnya
         if (this.number == this.question[1]) {
             this.correctAnswer = true
         } else {
@@ -307,21 +311,24 @@ export default class MathFighterScene extends Phaser.Scene {
     }
 
     spriteHit(slash, sprite) {
-        slash.x = 0
-        slash.y = 0
-        slash.setActive(false)
-        slash.setVisible(false)
-        if (sprite.texture.key == 'player') {
-            sprite.anims.play('player-hit', true)
-        } else {
-            sprite.anims.play('enemy-hit', true)
-        }
-        this.time.delayedCall(500, () => {
+        // slash.x = 0
+        // slash.y = 0
+        // slash.setActive(false)
+        // slash.setVisible(false)
+        // if (sprite.texture.key == 'player') {
+        //     sprite.anims.play('player-hit', true)
+        // } else {
+        //     sprite.anims.play('enemy-hit', true)
+        // }
+
+        // 500ms 
+        this.time.delayedCall(1000, () => {
             this.playerAttack = false
             this.enemyAttack = false
             this.correctAnswer = undefined
             this.generateQuestion()
         }
+
         )
     }
 
