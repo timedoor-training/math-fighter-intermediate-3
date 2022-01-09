@@ -1,17 +1,17 @@
-import Phaser from "phaser";
+import Phaser from 'phaser'
+import ScoreLabel from '../ui/ScoreLabel'
 
 export default class MathFighterScene extends Phaser.Scene {
     constructor() {
         super('math-fighter-scene')
     }
+
     init() {
         this.gameHalfWidth = this.scale.width * 0.5
         this.gameHalfHeight = this.scale.height * 0.5
-
         this.player = undefined
         this.enemy = undefined
         this.slash = undefined
-
         this.startGame = false
         this.questionText = undefined
         this.resultText = undefined
@@ -31,55 +31,54 @@ export default class MathFighterScene extends Phaser.Scene {
 
         this.numberArray = []
         this.number = 0
-
-        this.resulText = undefined
-
         this.question = []
         this.questionText = undefined
-
         this.correctAnswer = undefined
-
         this.playerAttack = false
         this.enemyAttack = false
+        this.scoreLabel = 0
+        this.timerLabel = undefined
+        this.countdownTimer = 60
+        this.timedEvent = undefined
     }
+
     preload() {
-        this.load.image('background', 'images/bg-layer1.png')
+        this.load.image('background', 'images/bg_layer1.png')
         this.load.image('fight-bg', 'images/fight-bg.png')
         this.load.image('tile', 'images/tile.png')
         this.load.image('start-btn', 'images/start_button.png')
+        this.load.spritesheet('player', 'images/warrior1.png',
+            { frameWidth: 80, frameHeight: 80 })
+        this.load.spritesheet('enemy', 'images/warrior2.png',
+            { frameWidth: 80, frameHeight: 80 })
+        this.load.spritesheet('numbers', 'images/numbers.png',
+            { frameWidth: 131, frameHeight: 71.25 })
+        this.load.spritesheet('slash', 'images/slash.png',
+            { frameWidth: 42, frameHeight: 88 })
 
-        this.load.spritesheet('player', 'images/warrior1.png', {
-            frameWidth: 80, frameHeight: 80
-        })
-        this.load.spritesheet('enemy', 'images/warrior2.png', {
-            frameWidth: 80, frameHeight: 80
-        })
-        this.load.spritesheet('numbers', 'images/numbers.png', {
-            frameWidth: 131, frameHeight: 71.25
-        })
-        this.load.spritesheet('slash', 'images/slash.png', {
-            frameWidth: 88, frameHeight: 42
-        })
     }
+
     create() {
+        //create background
         this.add.image(240, 320, 'background')
+        //create fight-bg
         const fight_bg = this.add.image(240, 160, 'fight-bg')
-        const tile = this.physics.add.staticImage(240, fight_bg.height - 40, 'tile')
+        //create tile
+        const tile = this.physics.add.staticImage(240,
+            fight_bg.height - 40, 'tile')
 
         this.player = this.physics.add.sprite(
             this.gameHalfWidth - 150,
-            this.gameHalfHeight - 200, 'player'
-        ).setOffset(-50, -8)
+            this.gameHalfHeight - 200, 'player')
             .setBounce(0.2)
-
+            .setOffset(-50, -10)
+        this.physics.add.collider(this.player, tile)
         this.enemy = this.physics.add.sprite(
             this.gameHalfWidth + 150,
-            this.gameHalfHeight - 200, 'enemy'
-        ).setOffset(50, -8)
+            this.gameHalfHeight - 200, 'enemy')
+            .setOffset(50, -8)
             .setBounce(0.2)
             .setFlipX(true)
-
-        this.physics.add.collider(this.player, tile)
         this.physics.add.collider(this.enemy, tile)
 
         this.slash = this.physics.add.sprite(240, 60, 'slash')
@@ -92,18 +91,35 @@ export default class MathFighterScene extends Phaser.Scene {
 
         this.createAnimation()
 
-        this.createButtons()
+        let start_button = this.add.image(this.gameHalfWidth,
+            this.gameHalfHeight + 181, 'start-btn').setInteractive()
 
-        let start_button = this.add.image(this.gameHalfWidth, this.gameHalfHeight + 181, 'start-btn').setInteractive()
         start_button.on('pointerdown', () => {
             this.gameStart()
             start_button.destroy()
         }, this)
 
-        this.physics.add.overlap(this.player, this.slash, this.spriteHit, undefined, this)
-        this.physics.add.overlap(this.enemy, this.slash, this.spriteHit, undefined, this)
+        this.physics.add.overlap(
+            this.player,
+            this.slash,
+            this.spriteHit,
+            null,
+            this
+        )
 
+        this.physics.add.overlap(
+            this.enemy,
+            this.slash,
+            this.spriteHit,
+            null,
+            this
+        )
+
+        this.scoreLabel = this.createScoreLabel(26, 16, 0)
+
+        this.timerLabel = this.add.text(this.gameHalfWidth, 16, null).setDepth(5)
     }
+
     update(time) {
         if (this.correctAnswer == true && !this.playerAttack) {
             this.player.anims.play('player-attack', true)
@@ -113,19 +129,32 @@ export default class MathFighterScene extends Phaser.Scene {
             })
             this.playerAttack = true
         }
+
         if (this.correctAnswer == undefined) {
             this.player.anims.play('player-standby', true)
             this.enemy.anims.play('enemy-standby', true)
         }
+
         if (this.correctAnswer == false && !this.enemyAttack) {
             this.enemy.anims.play('enemy-attack', true)
+
             this.time.delayedCall(500, () => {
                 this.createSlash(this.enemy.x - 60,
-                    this.enemy.y, 2, -600)
+                    this.enemy.y, 2, -600, true)
             })
             this.enemyAttack = true
         }
+
+        if (this.startGame) {
+            this.timerLabel.setStyle({
+                fontSize: '24px',
+                fill: '#000',
+                fontStyle: 'bold',
+                align: 'center'
+            }).setText(this.countdownTimer)
+        }
     }
+
     createAnimation() {
         this.anims.create({
             key: 'player-die',
@@ -177,38 +206,82 @@ export default class MathFighterScene extends Phaser.Scene {
             frameRate: 10,
             repeat: -1
         })
+
     }
+
     gameStart() {
-        this.startGame = true
+        // this.startGame = true
         this.player.anims.play('player-standby', true)
         this.enemy.anims.play('enemy-standby', true)
+        this.resultText = this.add.text(this.gameHalfWidth,
+            200, '0', { fontSize: '32px', fill: '#000' })
+        this.questionText = this.add.text(this.gameHalfWidth,
+            100, '0', { fontSize: '32px', fill: '#000' })
 
-        this.resultText = this.add.text(this.gameHalfWidth, 200, '0', { fontSize: '32px', fill: "#000" })
-        this.questionText = this.add.text(this.gameHalfWidth, 100, '0', { fontSize: '32px', fill: "#000" })
+        this.createButtons()
 
         this.input.on('gameobjectdown', this.addNumber, this)
         this.generateQuestion()
+
+        this.timedEvent = this.time.addEvent({
+            delay: 1000,
+            callback: this.gameOver,
+            callbackScope: this,
+            loop: true
+        })
     }
+
     createButtons() {
         const startPositionY = this.scale.height - 246
         const widthDifference = 131
         const heightDifference = 71.25
-        // namaButton=this.add.image(koordinatX, koordinatY)
-        this.button2 = this.add.image(this.gameHalfWidth, startPositionY, 'numbers', 1).setInteractive().setData('value', 2)
-        this.button5 = this.add.image(this.gameHalfWidth, this.button2.y + heightDifference, 'numbers', 4).setInteractive().setData('value', 5)
-        this.button8 = this.add.image(this.gameHalfWidth, this.button5.y + heightDifference, 'numbers', 7).setInteractive().setData('value', 8)
-        this.button0 = this.add.image(this.gameHalfWidth, this.button8.y + heightDifference, 'numbers', 10).setInteractive().setData('value', 0)
 
-        this.button1 = this.add.image(this.button2.x - widthDifference, startPositionY, 'numbers', 0).setInteractive().setData('value', 1)
-        this.button4 = this.add.image(this.button5.x - widthDifference, this.button1.y + heightDifference, 'numbers', 3).setInteractive().setData('value', 4)
-        this.button7 = this.add.image(this.button8.x - widthDifference, this.button4.y + heightDifference, 'numbers', 6).setInteractive().setData('value', 7)
-        this.buttonDel = this.add.image(this.button0.x - widthDifference, this.button7.y + heightDifference, 'numbers', 9).setInteractive().setData('value', 'del')
+        this.button2 = this.add.image(this.gameHalfWidth,
+            startPositionY, 'numbers', 1)
+            .setInteractive().setData('value', 2)
+        this.button5 = this.add.image(this.gameHalfWidth,
+            this.button2.y + heightDifference, 'numbers', 4)
+            .setInteractive().setData('value', 5)
+        this.button8 = this.add.image(this.gameHalfWidth,
+            this.button5.y + heightDifference, 'numbers', 7)
+            .setInteractive().setData('value', 8)
+        this.button0 = this.add.image(this.gameHalfWidth,
+            this.button8.y + heightDifference, 'numbers', 10)
+            .setInteractive().setData('value', 0)
 
-        this.button3 = this.add.image(this.button2.x + widthDifference, startPositionY, 'numbers', 2).setInteractive().setData('value', 3)
-        this.button6 = this.add.image(this.button5.x + widthDifference, this.button3.y + heightDifference, 'numbers', 5).setInteractive().setData('value', 6)
-        this.button9 = this.add.image(this.button8.x + widthDifference, this.button6.y + heightDifference, 'numbers', 8).setInteractive().setData('value', 9)
-        this.buttonOk = this.add.image(this.button0.x + widthDifference, this.button9.y + heightDifference, 'numbers', 11).setInteractive().setData('value', 'ok')
+        this.button1 = this.add.image(this.button2.x -
+            widthDifference, startPositionY, 'numbers', 0)
+            .setInteractive().setData('value', 1)
+        this.button4 = this.add.image(this.button5.x -
+            widthDifference, this.button1.y +
+        heightDifference, 'numbers', 3)
+            .setInteractive().setData('value', 4)
+        this.button7 = this.add.image(this.button8.x -
+            widthDifference, this.button4.y +
+        heightDifference, 'numbers', 6)
+            .setInteractive().setData('value', 7)
+        this.buttonDel = this.add.image(this.button0.x -
+            widthDifference, this.button7.y +
+        heightDifference, 'numbers', 9)
+            .setInteractive().setData('value', 'del')
+
+        this.button3 = this.add.image(this.button2.x +
+            widthDifference, startPositionY, 'numbers', 2)
+            .setInteractive().setData('value', 3)
+        this.button6 = this.add.image(this.button5.x +
+            widthDifference, this.button3.y +
+        heightDifference, 'numbers', 5)
+            .setInteractive().setData('value', 6)
+        this.button9 = this.add.image(this.button8.x +
+            widthDifference, this.button6.y +
+        heightDifference, 'numbers', 8)
+            .setInteractive().setData('value', 9)
+        this.buttonOk = this.add.image(this.button0.x +
+            widthDifference, this.button9.y +
+        heightDifference, 'numbers', 11)
+            .setInteractive().setData('value', 'ok')
     }
+
     addNumber(pointer, object, event) {
         let value = object.getData('value')
 
@@ -226,8 +299,7 @@ export default class MathFighterScene extends Phaser.Scene {
             }
         } else {
             //kondisi untuk button 0
-            if (this.numberArray.length == 1 &&
-                this.numberArray[0] == 0) {
+            if (this.numberArray.length == 1 && this.numberArray[0] == 0) {
                 this.numberArray[0] = value
             } else {
                 //jika panjang array kurang dari 10
@@ -239,13 +311,10 @@ export default class MathFighterScene extends Phaser.Scene {
         }
 
         this.number = parseInt(this.numberArray.join(''))
-
         this.resultText.setText(this.number)
         const textHalfWidth = this.resultText.width * 0.5
-        this.resultText.setX(this.gameHalfWidth -
-            textHalfWidth)
+        this.resultText.setX(this.gameHalfWidth - textHalfWidth)
         event.stopPropagation()
-
     }
 
     getOperator() {
@@ -289,11 +358,12 @@ export default class MathFighterScene extends Phaser.Scene {
 
         this.questionText.setText(this.question[0])
         const textHalfWidth = this.questionText.width * 0.5
-        this.questionText.setX(this.gameHalfWidth -
-            textHalfWidth)
+        this.questionText.setX(this.gameHalfWidth - textHalfWidth)
     }
+
+
+
     checkAnswer() {
-        // bandingkan jawaban yang di input dengan soalnya
         if (this.number == this.question[1]) {
             this.correctAnswer = true
         } else {
@@ -303,7 +373,7 @@ export default class MathFighterScene extends Phaser.Scene {
 
     createSlash(x, y, frame, velocity, flip = false) {
         this.slash.setPosition(x, y)
-            .setActive(true)
+            .setActive(false)
             .setVisible(true)
             .setFrame(frame)
             .setVelocityX(velocity)
@@ -311,25 +381,49 @@ export default class MathFighterScene extends Phaser.Scene {
     }
 
     spriteHit(slash, sprite) {
-        // slash.x = 0
-        // slash.y = 0
-        // slash.setActive(false)
-        // slash.setVisible(false)
-        // if (sprite.texture.key == 'player') {
-        //     sprite.anims.play('player-hit', true)
-        // } else {
-        //     sprite.anims.play('enemy-hit', true)
-        // }
+        slash.x = 0
+        slash.y = 0
 
-        // 500ms 
-        this.time.delayedCall(1000, () => {
+        slash.setActive(false)
+        slash.setVisible(false)
+
+        if (sprite.texture.key == 'player') {
+            sprite.anims.play('player-hit', true)
+            if (this.scoreLabel.getScore() > 0) {
+                this.scoreLabel.add(-50)
+            }
+        } else {
+            sprite.anims.play('enemy-hit', true)
+            this.scoreLabel.add(50)
+        }
+
+        this.time.delayedCall(500, () => {
             this.playerAttack = false
             this.enemyAttack = false
             this.correctAnswer = undefined
             this.generateQuestion()
         }
-
         )
+    }
+
+    createScoreLabel(x, y, score) {
+        const style = {
+            fontSize: '24px', fill: '#000',
+            fontStyle: 'bold'
+        }
+        const label = new ScoreLabel(this, x, y, score, style).setDepth(1)
+        this.add.existing(label)
+        return label
+    }
+
+    gameOver() {
+        this.countdownTimer -= 1
+        if (this.countdownTimer < 0) {
+            this.scene.start('game-over-scene', {
+                score:
+                    this.scoreLabel.getScore()
+            })
+        }
     }
 
 }
